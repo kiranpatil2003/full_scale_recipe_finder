@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,8 +11,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Configurable base URL — change this anytime
-  static const String baseUrl = "http://192.168.1.33:8000";
+  // Configuration retrieved from .env file
+  final String baseUrl = dotenv.env['API_URL'] ?? "http://localhost:8000";
 
   String _verifyResponse = "";
   bool _isLoading = true;

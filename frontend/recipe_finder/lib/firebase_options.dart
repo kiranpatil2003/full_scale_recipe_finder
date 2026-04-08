@@ -64,7 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '676805655287',
     projectId: 'recipe-finder-12a1b',
     storageBucket: 'recipe-finder-12a1b.firebasestorage.app',
-    iosClientId: '676805655287-5rie7u05ecb29ankm565iamk645hqopi.apps.googleusercontent.com',
+    iosClientId:
+        '676805655287-5rie7u05ecb29ankm565iamk645hqopi.apps.googleusercontent.com',
     iosBundleId: 'com.example.recipeFinder',
   );
 
@@ -74,7 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '676805655287',
     projectId: 'recipe-finder-12a1b',
     storageBucket: 'recipe-finder-12a1b.firebasestorage.app',
-    iosClientId: '676805655287-5rie7u05ecb29ankm565iamk645hqopi.apps.googleusercontent.com',
+    iosClientId:
+        '676805655287-5rie7u05ecb29ankm565iamk645hqopi.apps.googleusercontent.com',
     iosBundleId: 'com.example.recipeFinder',
   );
 
