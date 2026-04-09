@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:recipe_finder/services/user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,6 +64,8 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      // Sync user to Supabase
+      await _syncUserToSupabase();
       _showMessage("Registration Successful");
     } on FirebaseAuthException catch (e) {
       _showMessage(e.message ?? "An error occurred", isError: true);
@@ -83,11 +86,23 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      // Sync user to Supabase
+      await _syncUserToSupabase();
       _showMessage("Login Successful");
     } on FirebaseAuthException catch (e) {
       _showMessage(e.message ?? "An error occurred", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // --- Sync user to Supabase via backend ---
+  Future<void> _syncUserToSupabase() async {
+    try {
+      await UserService.verifyAndGetProfile();
+    } catch (e) {
+      // Non-blocking: user is created in Firebase, Supabase sync can retry later
+      debugPrint('Supabase sync warning: $e');
     }
   }
 
@@ -109,6 +124,8 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       await _auth.signInWithCredential(credential);
+      // Sync user to Supabase
+      await _syncUserToSupabase();
       _showMessage("Google Sign-In Successful");
     } catch (e) {
       _showMessage("Google Sign-In failed: $e", isError: true);
