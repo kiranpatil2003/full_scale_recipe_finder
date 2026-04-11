@@ -16,8 +16,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ScrollController _scrollController = ScrollController();
   List<Recipe> _recipes = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
+  final int _limit = 30;
   String? _error;
   String _selectedCategory = 'all';
   final Set<int> _favoriteIds = {};
@@ -29,24 +34,43 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadRecipes();
     _loadFavorites();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.extentAfter < 500) {
+      _loadMoreRecipes();
+    }
   }
 
   Future<void> _loadRecipes() async {
     setState(() {
       _isLoading = true;
       _error = null;
+      _offset = 0;
+      _hasMore = true;
     });
     try {
       final recipes = await RecipeService.getRecipes(
         category: _selectedCategory == 'all' ? null : _selectedCategory,
-        limit: 50,
+        limit: _limit,
+        offset: _offset,
       );
       if (mounted) {
         setState(() {
           _recipes = recipes;
           _isLoading = false;
+          _offset += recipes.length;
+          // Only stop if we get absolutely nothing back
+          if (recipes.isEmpty) _hasMore = false;
         });
       }
     } catch (e) {
@@ -55,6 +79,33 @@ class _HomePageState extends State<HomePage> {
           _error = e.toString();
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _loadMoreRecipes() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final recipes = await RecipeService.getRecipes(
+        category: _selectedCategory == 'all' ? null : _selectedCategory,
+        limit: _limit,
+        offset: _offset,
+      );
+      if (mounted) {
+        setState(() {
+          _recipes.addAll(recipes);
+          _isLoadingMore = false;
+          _offset += recipes.length;
+          // Only stop if we get absolutely nothing back
+          if (recipes.isEmpty) _hasMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
@@ -106,6 +157,8 @@ class _HomePageState extends State<HomePage> {
             await _loadFavorites();
           },
           child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // Header
               SliverToBoxAdapter(
@@ -293,7 +346,7 @@ class _HomePageState extends State<HomePage> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                   sliver: SliverGrid(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
@@ -323,6 +376,20 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
+
+              // Loading more indicator
+              if (_isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
+                    ),
+                  ),
+                ),
+
+              // Bottom padding
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
             ],
           ),
         ),

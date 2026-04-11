@@ -112,17 +112,38 @@ async def list_recipes(
     allergies, preferences = _get_user_restrictions(uid)
 
     sb = get_supabase()
-    query = sb.table("recipes").select("*")
+    
+    all_filtered = []
+    current_offset = offset
+    # We'll try to fetch a bit more than 'limit' to satisfy the request after filtering
+    batch_size = max(limit * 2, 50) 
+    max_iterations = 3
 
-    if category:
-        query = query.eq("category", category.lower())
+    for _ in range(max_iterations):
+        query = sb.table("recipes").select("*")
+        if category:
+            query = query.eq("category", category.lower())
 
-    query = query.range(offset, offset + limit - 1).order("id", desc=True)
-    result = query.execute()
-    recipes = result.data or []
+        # Fetch a range of recipes
+        query = query.range(current_offset, current_offset + batch_size - 1).order("id", desc=True)
+        result = query.execute()
+        batch_recipes = result.data or []
 
-    filtered = _filter_by_restrictions(recipes, allergies, preferences)
-    return filtered
+        if not batch_recipes:
+            break
+
+        filtered_batch = _filter_by_restrictions(batch_recipes, allergies, preferences)
+        
+        # Add filtered results to our list
+        all_filtered.extend(filtered_batch)
+
+        current_offset += len(batch_recipes)
+        
+        # If we have enough or reached the end of the DB, stop
+        if len(all_filtered) >= limit or len(batch_recipes) < batch_size:
+            break
+
+    return all_filtered[:limit]
 
 
 @router.get("/search", response_model=list[Recipe])

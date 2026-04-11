@@ -14,26 +14,90 @@ class CategoryRecipesPage extends StatefulWidget {
 }
 
 class _CategoryRecipesPageState extends State<CategoryRecipesPage> {
+  final ScrollController _scrollController = ScrollController();
   List<Recipe> _recipes = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
+  final int _limit = 30;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadRecipes();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.extentAfter < 500) {
+      _loadMoreRecipes();
+    }
+  }
+
   Future<void> _loadRecipes() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _offset = 0;
+      _hasMore = true;
+    });
     try {
       final recipes = await RecipeService.getRecipes(
         category: widget.category,
-        limit: 50,
+        limit: _limit,
+        offset: _offset,
       );
-      if (mounted) setState(() { _recipes = recipes; _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _recipes = recipes;
+          _isLoading = false;
+          _offset += recipes.length;
+          // Only stop if we get absolutely nothing back
+          if (recipes.isEmpty) _hasMore = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMoreRecipes() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final recipes = await RecipeService.getRecipes(
+        category: widget.category,
+        limit: _limit,
+        offset: _offset,
+      );
+      if (mounted) {
+        setState(() {
+          _recipes.addAll(recipes);
+          _isLoadingMore = false;
+          _offset += recipes.length;
+          // Only stop if we get absolutely nothing back
+          if (recipes.isEmpty) _hasMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
     }
   }
 
@@ -86,29 +150,51 @@ class _CategoryRecipesPageState extends State<CategoryRecipesPage> {
                           ],
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(20),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 0.68,
-                        ),
-                        itemCount: _recipes.length,
-                        itemBuilder: (context, index) {
-                          return RecipeCard(
-                            recipe: _recipes[index],
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      RecipeDetailPage(recipe: _recipes[index]),
+                    : CustomScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.all(20),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 0.68,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  return RecipeCard(
+                                    recipe: _recipes[index],
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => RecipeDetailPage(
+                                              recipe: _recipes[index]),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                childCount: _recipes.length,
+                              ),
+                            ),
+                          ),
+                          if (_isLoadingMore)
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xFFFF6B35)),
                                 ),
-                              );
-                            },
-                          );
-                        },
+                              ),
+                            ),
+                          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                        ],
                       ),
       ),
     );

@@ -42,9 +42,9 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
       if (mounted) setState(() => _isFavorite = !_isFavorite);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _loadingFav = false);
@@ -71,7 +71,11 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                   color: Colors.black.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               onPressed: () => Navigator.pop(context),
             ),
@@ -105,7 +109,11 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                       ),
                       errorWidget: (_, __, ___) => Container(
                         color: const Color(0xFFFF6B35).withValues(alpha: 0.2),
-                        child: const Icon(Icons.restaurant, size: 64, color: Colors.white54),
+                        child: const Icon(
+                          Icons.restaurant,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
                       ),
                     )
                   : Container(
@@ -117,7 +125,11 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                         ),
                       ),
                       child: const Center(
-                        child: Icon(Icons.restaurant_menu, size: 80, color: Colors.white54),
+                        child: Icon(
+                          Icons.restaurant_menu,
+                          size: 80,
+                          color: Colors.white54,
+                        ),
                       ),
                     ),
             ),
@@ -146,18 +158,13 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF6B35).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          recipe.source.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFFF6B35),
-                          ),
                         ),
                       ),
                     ],
@@ -213,9 +220,14 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                       runSpacing: 6,
                       children: recipe.dietLabels.map((label) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -239,11 +251,17 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.warning_amber, color: Color(0xFFF59E0B), size: 20),
+                          const Icon(
+                            Icons.warning_amber,
+                            color: Color(0xFFF59E0B),
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -323,7 +341,9 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B35).withValues(alpha: 0.1),
+                              color: const Color(
+                                0xFFFF6B35,
+                              ).withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -397,10 +417,7 @@ class _InfoChip extends StatelessWidget {
             ),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
             ),
           ],
         ),
