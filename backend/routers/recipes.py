@@ -122,7 +122,7 @@ async def list_recipes(
     for _ in range(max_iterations):
         query = sb.table("recipes").select("*")
         if category:
-            query = query.eq("category", category.lower())
+            query = query.ilike("category", category)
 
         # Fetch a range of recipes
         query = query.range(current_offset, current_offset + batch_size - 1).order("id", desc=True)

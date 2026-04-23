@@ -30,7 +30,10 @@ async def list_categories():
     # Count recipes per category
     category_counts: dict[str, int] = {}
     for r in recipes:
-        cat = r.get("category", "other")
+        cat = r.get("category")
+        if not cat:
+            cat = "other"
+        cat = str(cat).lower()
         category_counts[cat] = category_counts.get(cat, 0) + 1
 
     # If no recipes in DB yet, return default categories with 0 count
@@ -46,5 +49,5 @@ async def list_categories():
             description=CATEGORY_DESCRIPTIONS.get(cat, f"Delicious {cat} recipes."),
             recipe_count=count,
         )
-        for cat, count in sorted(category_counts.items())
+        for cat, count in sorted(category_counts.items(), key=lambda x: str(x[0]).lower())
     ]

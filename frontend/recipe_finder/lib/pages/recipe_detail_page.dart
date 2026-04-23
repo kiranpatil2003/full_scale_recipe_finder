@@ -331,7 +331,13 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...recipe.instructions.asMap().entries.map((entry) {
+                  ...recipe.instructions
+                      .where((inst) =>
+                          !inst.trim().toLowerCase().startsWith('step'))
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: Row(

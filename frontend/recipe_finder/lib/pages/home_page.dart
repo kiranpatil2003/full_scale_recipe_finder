@@ -27,16 +27,28 @@ class _HomePageState extends State<HomePage> {
   String _selectedCategory = 'all';
   final Set<int> _favoriteIds = {};
 
-  final List<String> _categories = [
-    'all', 'breakfast', 'lunch', 'dinner', 'snacks', 'desserts', 'drinks', 'salads'
-  ];
+  List<String> _categories = ['all'];
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadCategories();
     _loadRecipes();
     _loadFavorites();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await RecipeService.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = ['all', ...categories.map((c) => c.name)];
+        });
+      }
+    } catch (e) {
+      // Fallback or ignore error, keeping 'all'
+    }
   }
 
   @override
@@ -153,6 +165,7 @@ class _HomePageState extends State<HomePage> {
         child: RefreshIndicator(
           color: const Color(0xFFFF6B35),
           onRefresh: () async {
+            await _loadCategories();
             await _loadRecipes();
             await _loadFavorites();
           },
