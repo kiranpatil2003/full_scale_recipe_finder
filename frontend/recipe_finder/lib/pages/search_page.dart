@@ -122,30 +122,39 @@ class _SearchPageState extends State<SearchPage> {
                       ),
                     ),
                   ] else ...[
-                    // Ingredient input
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _ingredientController,
-                            onSubmitted: (val) {
-                              if (val.trim().isNotEmpty) {
-                                _addIngredient(val.trim());
-                                _ingredientController.clear();
-                              }
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Add an ingredient...',
-                              hintStyle: TextStyle(color: Colors.grey.shade400),
-                              prefixIcon: const Icon(Icons.add_circle_outline, color: Color(0xFFFF6B35)),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none,
+                      // Ingredient input
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _ingredientController,
+                              onSubmitted: (val) {
+                                if (val.trim().isNotEmpty) {
+                                  _addIngredient(val.trim());
+                                  _ingredientController.clear();
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Add an ingredient...',
+                                hintStyle: TextStyle(color: Colors.grey.shade400),
+                                prefixIcon: IconButton(
+                                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFF6B35)),
+                                  onPressed: () {
+                                    final val = _ingredientController.text.trim();
+                                    if (val.isNotEmpty) {
+                                      _addIngredient(val);
+                                      _ingredientController.clear();
+                                    }
+                                  },
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            ),
                           ),
                         ),
                         const SizedBox(width: 10),

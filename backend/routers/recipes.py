@@ -4,6 +4,9 @@ from middleware.auth import get_current_user
 from models.schemas import Recipe, MessageResponse
 from core.supabase import get_supabase
 from core.third_party_apis import search_all_apis, search_all_by_ingredients
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
@@ -168,6 +171,7 @@ async def search_recipes(
 
     # Step 2: If not enough results, fetch from third-party APIs
     if len(db_recipes) < 5:
+        logger.info(f"Using third-party APIs for search query: '{q}' (DB had {len(db_recipes)} results)")
         api_recipes = await search_all_apis(q, number_per_api=5)
         if api_recipes:
             saved = _save_recipes_to_db(api_recipes)
@@ -199,19 +203,33 @@ async def search_by_ingredients(
 
     ingredient_list = [i.strip() for i in ingredients.split(",") if i.strip()]
 
-    # Search Supabase first (basic ingredient matching)
+    # Search Supabase first (using regex for ingredient matching)
     sb = get_supabase()
     db_recipes = []
-    for ingredient in ingredient_list[:3]:
-        result = sb.table("recipes").select("*").contains(
-            "ingredients", [ingredient]
-        ).limit(10).execute()
-        for recipe in (result.data or []):
-            if recipe not in db_recipes:
-                db_recipes.append(recipe)
+    
+    import re
+    # Create regex patterns for the ingredients to do a case-insensitive search
+    patterns = [re.compile(re.escape(ing), re.IGNORECASE) for ing in ingredient_list[:3]]
+    
+    # Fetch a batch of recent recipes to filter in memory
+    result = sb.table("recipes").select("*").order("id", desc=True).limit(1000).execute()
+    all_recipes = result.data or []
+    
+    for recipe in all_recipes:
+        recipe_ingredients = recipe.get("ingredients", [])
+        for pattern in patterns:
+            if any(pattern.search(ing) for ing in recipe_ingredients):
+                if recipe not in db_recipes:
+                    db_recipes.append(recipe)
+                break
+        
+        if len(db_recipes) >= 20:
+            break
 
     # If not enough, try third-party APIs
     if len(db_recipes) < 5:
+        print("it is not founded in the db using third party api")
+        logger.info(f"Using third-party APIs for ingredient search: {ingredient_list} (DB had {len(db_recipes)} results)")
         api_recipes = await search_all_by_ingredients(ingredient_list)
         if api_recipes:
             saved = _save_recipes_to_db(api_recipes)

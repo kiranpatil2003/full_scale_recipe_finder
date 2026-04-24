@@ -377,6 +377,5 @@ async def search_all_apis(query: str, number_per_api: int = 5) -> list[dict]:
 
 async def search_all_by_ingredients(ingredients: list[str], number: int = 10) -> list[dict]:
     """Search by ingredients across available APIs."""
-    # Currently only Spoonacular supports ingredient-based search
     results = await search_spoonacular_by_ingredients(ingredients, number)
     return results
