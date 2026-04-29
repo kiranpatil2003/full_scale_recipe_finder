@@ -46,6 +46,18 @@ class RecipeService {
     throw Exception('Ingredient search failed: ${response.statusCode}');
   }
 
+  /// Search recipes by nutrition filters (min/max values)
+  static Future<List<Recipe>> searchByNutrition(
+      Map<String, String> filters) async {
+    final response = await ApiService.get('/recipes/search-by-nutrition',
+        queryParams: filters);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Recipe.fromJson(json)).toList();
+    }
+    throw Exception('Nutrition search failed: ${response.statusCode}');
+  }
+
   /// Get a single recipe by ID
   static Future<Recipe> getRecipeById(int id) async {
     final response = await ApiService.get('/recipes/$id');

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from middleware.auth import get_current_user
-from models.schemas import Recipe, MessageResponse
+from models.schemas import Recipe, MessageResponse, NutritionData
 from core.supabase import get_supabase
 from core.third_party_apis import search_all_apis, search_all_by_ingredients
 import logging
@@ -240,6 +240,110 @@ async def search_by_ingredients(
 
     filtered = _filter_by_restrictions(db_recipes, allergies, preferences)
     return filtered
+
+
+# ─── Nutrition fields used for search-by-nutrition ─────────────────────────
+_NUTRITION_FIELDS = [
+    "calories_kcal", "protein_g", "fat_total_g", "carbohydrates_g",
+    "fiber_g", "sugar_g", "sodium_mg", "cholesterol_mg",
+    "saturated_fat_g", "potassium_mg", "calcium_mg", "iron_mg",
+    "vitamin_c_mg", "vitamin_a_iu", "vitamin_d_iu", "vitamin_b12_mcg",
+    "folate_mcg", "zinc_mg", "magnesium_mg", "phosphorus_mg",
+]
+
+
+@router.get("/search-by-nutrition", response_model=list[Recipe])
+async def search_by_nutrition(
+    # ── Macros ──
+    min_calories_kcal: Optional[float] = Query(None), max_calories_kcal: Optional[float] = Query(None),
+    min_protein_g: Optional[float] = Query(None), max_protein_g: Optional[float] = Query(None),
+    min_fat_total_g: Optional[float] = Query(None), max_fat_total_g: Optional[float] = Query(None),
+    min_carbohydrates_g: Optional[float] = Query(None), max_carbohydrates_g: Optional[float] = Query(None),
+    # ── Sugars & Fiber ──
+    min_fiber_g: Optional[float] = Query(None), max_fiber_g: Optional[float] = Query(None),
+    min_sugar_g: Optional[float] = Query(None), max_sugar_g: Optional[float] = Query(None),
+    # ── Vitamins ──
+    min_vitamin_a_iu: Optional[float] = Query(None), max_vitamin_a_iu: Optional[float] = Query(None),
+    min_vitamin_c_mg: Optional[float] = Query(None), max_vitamin_c_mg: Optional[float] = Query(None),
+    min_vitamin_d_iu: Optional[float] = Query(None), max_vitamin_d_iu: Optional[float] = Query(None),
+    min_vitamin_b12_mcg: Optional[float] = Query(None), max_vitamin_b12_mcg: Optional[float] = Query(None),
+    min_folate_mcg: Optional[float] = Query(None), max_folate_mcg: Optional[float] = Query(None),
+    # ── Minerals ──
+    min_sodium_mg: Optional[float] = Query(None), max_sodium_mg: Optional[float] = Query(None),
+    min_cholesterol_mg: Optional[float] = Query(None), max_cholesterol_mg: Optional[float] = Query(None),
+    min_saturated_fat_g: Optional[float] = Query(None), max_saturated_fat_g: Optional[float] = Query(None),
+    min_potassium_mg: Optional[float] = Query(None), max_potassium_mg: Optional[float] = Query(None),
+    min_calcium_mg: Optional[float] = Query(None), max_calcium_mg: Optional[float] = Query(None),
+    min_iron_mg: Optional[float] = Query(None), max_iron_mg: Optional[float] = Query(None),
+    min_zinc_mg: Optional[float] = Query(None), max_zinc_mg: Optional[float] = Query(None),
+    min_magnesium_mg: Optional[float] = Query(None), max_magnesium_mg: Optional[float] = Query(None),
+    min_phosphorus_mg: Optional[float] = Query(None), max_phosphorus_mg: Optional[float] = Query(None),
+    # ── Pagination ──
+    limit: int = Query(default=20, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Search recipes by nutrition range filters.
+    All nutrition fields are optional — only the ones provided are used as filters.
+    """
+    uid = current_user["uid"]
+    allergies, preferences = _get_user_restrictions(uid)
+
+    sb = get_supabase()
+
+    # Build a dict of all provided min/max values
+    locals_copy = locals()
+    filters: dict[str, tuple[Optional[float], Optional[float]]] = {}
+    for field in _NUTRITION_FIELDS:
+        mn = locals_copy.get(f"min_{field}")
+        mx = locals_copy.get(f"max_{field}")
+        if mn is not None or mx is not None:
+            filters[field] = (mn, mx)
+
+    if not filters:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one nutrition filter (min or max) is required.",
+        )
+
+    # Query the nutritions table
+    query = sb.table("nutritions").select("recipe_id")
+    for field, (mn, mx) in filters.items():
+        if mn is not None:
+            query = query.gte(field, mn)
+        if mx is not None:
+            query = query.lte(field, mx)
+
+    query = query.range(offset, offset + limit - 1)
+    nut_result = query.execute()
+    matched_ids = [row["recipe_id"] for row in (nut_result.data or [])]
+
+    if not matched_ids:
+        return []
+
+    # Fetch the full recipe rows for the matched IDs
+    recipe_result = sb.table("recipes").select("*").in_("id", matched_ids).execute()
+    recipes = recipe_result.data or []
+
+    # Apply allergy / dietary restrictions
+    filtered = _filter_by_restrictions(recipes, allergies, preferences)
+    return filtered
+
+
+@router.get("/{recipe_id}/nutrition", response_model=NutritionData)
+async def get_recipe_nutrition(
+    recipe_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get nutrition data for a specific recipe."""
+    sb = get_supabase()
+    result = sb.table("nutritions").select("*").eq("recipe_id", recipe_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Nutrition data not found for this recipe.")
+
+    return result.data[0]
 
 
 @router.get("/{recipe_id}", response_model=Recipe)
