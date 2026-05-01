@@ -190,6 +190,57 @@ async def search_recipes(
     return filtered
 
 
+STAPLE_INGREDIENTS = {
+    "salt", "pepper", "water", "oil", "olive oil", "vegetable oil",
+    "cooking oil", "sugar", "flour", "butter", "black pepper",
+    "kosher salt", "sea salt", "cooking spray",
+}
+
+
+def _compute_ingredient_score(
+    recipe_ingredients: list[str], user_ingredients: list[str]
+) -> tuple[float, list[str], list[str]]:
+    """
+    Compare user ingredients against a recipe's ingredient list.
+    Returns (score, matched_list, missing_list).
+    Staple ingredients are excluded from the missing count.
+    """
+    import re
+
+    user_patterns = [
+        (ing, re.compile(re.escape(ing), re.IGNORECASE))
+        for ing in user_ingredients
+    ]
+
+    matched: list[str] = []
+    missing: list[str] = []
+
+    for r_ing in recipe_ingredients:
+        r_ing_lower = r_ing.lower().strip()
+
+        # Check if this ingredient is a staple
+        is_staple = any(
+            staple in r_ing_lower for staple in STAPLE_INGREDIENTS
+        )
+
+        # Check if user has this ingredient
+        is_matched = any(pat.search(r_ing) for _, pat in user_patterns)
+
+        if is_matched:
+            matched.append(r_ing)
+        elif not is_staple:
+            missing.append(r_ing)
+        # Staples that aren't matched are simply ignored (don't count as missing)
+
+    non_staple_total = len(matched) + len(missing)
+    if non_staple_total == 0:
+        score = 0.0
+    else:
+        score = round(len(matched) / non_staple_total, 4)
+
+    return score, matched, missing
+
+
 @router.get("/search-by-ingredients", response_model=list[Recipe])
 async def search_by_ingredients(
     ingredients: str = Query(
@@ -197,48 +248,63 @@ async def search_by_ingredients(
     ),
     current_user: dict = Depends(get_current_user),
 ):
-    """Search recipes by ingredients with allergy filtering."""
+    """Search recipes by ingredients with scoring and sorting."""
     uid = current_user["uid"]
     allergies, preferences = _get_user_restrictions(uid)
 
     ingredient_list = [i.strip() for i in ingredients.split(",") if i.strip()]
 
-    # Search Supabase first (using regex for ingredient matching)
     sb = get_supabase()
-    db_recipes = []
-    
-    import re
-    # Create regex patterns for the ingredients to do a case-insensitive search
-    patterns = [re.compile(re.escape(ing), re.IGNORECASE) for ing in ingredient_list[:3]]
-    
-    # Fetch a batch of recent recipes to filter in memory
+
+    # Fetch a large batch of recipes to score in memory
     result = sb.table("recipes").select("*").order("id", desc=True).limit(1000).execute()
     all_recipes = result.data or []
-    
+
+    # Score every recipe that has at least one match
+    scored_recipes: list[dict] = []
     for recipe in all_recipes:
         recipe_ingredients = recipe.get("ingredients", [])
-        for pattern in patterns:
-            if any(pattern.search(ing) for ing in recipe_ingredients):
-                if recipe not in db_recipes:
-                    db_recipes.append(recipe)
-                break
-        
-        if len(db_recipes) >= 20:
-            break
+        if not recipe_ingredients:
+            continue
+
+        score, matched, missing = _compute_ingredient_score(
+            recipe_ingredients, ingredient_list
+        )
+
+        if score > 0:
+            recipe["match_score"] = score
+            recipe["matched_ingredients"] = matched
+            recipe["missing_ingredients"] = missing
+            scored_recipes.append(recipe)
 
     # If not enough, try third-party APIs
-    if len(db_recipes) < 5:
-        print("it is not founded in the db using third party api")
-        logger.info(f"Using third-party APIs for ingredient search: {ingredient_list} (DB had {len(db_recipes)} results)")
+    if len(scored_recipes) < 5:
+        logger.info(
+            f"Using third-party APIs for ingredient search: "
+            f"{ingredient_list} (DB had {len(scored_recipes)} results)"
+        )
         api_recipes = await search_all_by_ingredients(ingredient_list)
         if api_recipes:
             saved = _save_recipes_to_db(api_recipes)
-            existing_ids = {r.get("id") for r in db_recipes}
+            existing_ids = {r.get("id") for r in scored_recipes}
             for recipe in saved:
                 if recipe.get("id") not in existing_ids:
-                    db_recipes.append(recipe)
+                    recipe_ingredients = recipe.get("ingredients", [])
+                    score, matched, missing = _compute_ingredient_score(
+                        recipe_ingredients, ingredient_list
+                    )
+                    if score > 0:
+                        recipe["match_score"] = score
+                        recipe["matched_ingredients"] = matched
+                        recipe["missing_ingredients"] = missing
+                        scored_recipes.append(recipe)
 
-    filtered = _filter_by_restrictions(db_recipes, allergies, preferences)
+    # Apply allergy / dietary restrictions
+    filtered = _filter_by_restrictions(scored_recipes, allergies, preferences)
+
+    # Sort by score descending (best match first)
+    filtered.sort(key=lambda r: r.get("match_score", 0), reverse=True)
+
     return filtered
 
 

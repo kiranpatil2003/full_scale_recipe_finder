@@ -65,6 +65,7 @@ class _SearchPageState extends State<SearchPage> {
   _SearchMode _mode = _SearchMode.name;
   List<String> _selectedIngredients = [];
   bool _nutritionFiltersCollapsed = false;
+  bool _ingredientFiltersCollapsed = false;
 
   // Nutrition filter controllers (min & max for each field)
   final Map<String, TextEditingController> _minControllers = {};
@@ -119,7 +120,13 @@ class _SearchPageState extends State<SearchPage> {
     setState(() { _isLoading = true; _error = null; });
     try {
       final results = await RecipeService.searchByIngredients(_selectedIngredients);
-      if (mounted) setState(() { _results = results; _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _results = results;
+          _isLoading = false;
+          _ingredientFiltersCollapsed = true;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
     }
@@ -229,8 +236,10 @@ class _SearchPageState extends State<SearchPage> {
             // ─── Search inputs area ─────────────────────────────────────
             if (_mode == _SearchMode.name) ...[
               _buildNameSearch(),
-            ] else if (_mode == _SearchMode.ingredients) ...[
+            ] else if (_mode == _SearchMode.ingredients && !_ingredientFiltersCollapsed) ...[
               _buildIngredientSearch(),
+            ] else if (_mode == _SearchMode.ingredients && _ingredientFiltersCollapsed) ...[
+              _buildIngredientFilterBar(),
             ],
 
             // Nutrition mode gets a scrollable Expanded area
@@ -378,6 +387,59 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Collapsed ingredient filter bar ──────────────────────────────────────
+
+  Widget _buildIngredientFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => setState(() => _ingredientFiltersCollapsed = false),
+              icon: const Icon(Icons.shopping_basket, size: 18),
+              label: Text(
+                'Ingredients (${_selectedIngredients.length})',
+                style: const TextStyle(fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B35).withValues(alpha: 0.1),
+                foregroundColor: const Color(0xFFFF6B35),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFFFF6B35), width: 1),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            onPressed: () {
+              setState(() {
+                _selectedIngredients.clear();
+                _results = [];
+                _error = null;
+                _ingredientFiltersCollapsed = false;
+              });
+            },
+            icon: const Icon(Icons.clear_all, size: 18),
+            label: const Text('Reset'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.grey.shade600,
+              side: BorderSide(color: Colors.grey.shade300),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ],
@@ -674,6 +736,11 @@ class _SearchPageState extends State<SearchPage> {
       );
     }
 
+    // Use special scored list for ingredient search results
+    if (_mode == _SearchMode.ingredients) {
+      return _buildIngredientResults();
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -694,6 +761,176 @@ class _SearchPageState extends State<SearchPage> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  // ─── Ingredient search results with score badges ──────────────────────────
+
+  Widget _buildIngredientResults() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
+        final recipe = _results[index];
+        final score = recipe.matchScore ?? 0.0;
+        final matchedCount = recipe.matchedIngredients?.length ?? 0;
+        final totalNonStaple = matchedCount + (recipe.missingIngredients?.length ?? 0);
+
+        // Determine badge info
+        String badgeLabel;
+        Color badgeColor;
+        IconData badgeIcon;
+        if (score == 1.0) {
+          badgeLabel = 'Can make now';
+          badgeColor = const Color(0xFF10B981);
+          badgeIcon = Icons.check_circle;
+        } else if (score >= 0.5) {
+          badgeLabel = 'Almost there';
+          badgeColor = const Color(0xFFF59E0B);
+          badgeIcon = Icons.timelapse;
+        } else {
+          badgeLabel = 'Inspiration';
+          badgeColor = const Color(0xFF3B82F6);
+          badgeIcon = Icons.lightbulb_outline;
+        }
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RecipeDetailPage(recipe: recipe),
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Recipe image
+                ClipRRect(
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                  child: SizedBox(
+                    width: 100,
+                    height: 110,
+                    child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            recipe.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: badgeColor.withValues(alpha: 0.1),
+                              child: Icon(Icons.restaurant, color: badgeColor.withValues(alpha: 0.4), size: 36),
+                            ),
+                          )
+                        : Container(
+                            color: badgeColor.withValues(alpha: 0.1),
+                            child: Icon(Icons.restaurant_menu, color: badgeColor.withValues(alpha: 0.4), size: 36),
+                          ),
+                  ),
+                ),
+                // Recipe info
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Score badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(badgeIcon, size: 12, color: badgeColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                badgeLabel,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: badgeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Recipe name
+                        Text(
+                          recipe.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F2937),
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        // Match count & score bar
+                        Row(
+                          children: [
+                            Text(
+                              '$matchedCount / $totalNonStaple ingredients',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${(score * 100).toInt()}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: badgeColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        // Progress bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: score,
+                            minHeight: 4,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(badgeColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Arrow
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

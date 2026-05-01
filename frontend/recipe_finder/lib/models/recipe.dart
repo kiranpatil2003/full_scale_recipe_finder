@@ -13,6 +13,9 @@ class Recipe {
   final String externalId;
   final List<String> allergens;
   final List<String> dietLabels;
+  final double? matchScore;
+  final List<String>? matchedIngredients;
+  final List<String>? missingIngredients;
 
   Recipe({
     this.id,
@@ -29,6 +32,9 @@ class Recipe {
     this.externalId = '',
     this.allergens = const [],
     this.dietLabels = const [],
+    this.matchScore,
+    this.matchedIngredients,
+    this.missingIngredients,
   });
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
@@ -59,6 +65,13 @@ class Recipe {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      matchScore: (json['match_score'] as num?)?.toDouble(),
+      matchedIngredients: (json['matched_ingredients'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList(),
+      missingIngredients: (json['missing_ingredients'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList(),
     );
   }
 
@@ -78,6 +91,9 @@ class Recipe {
       'external_id': externalId,
       'allergens': allergens,
       'diet_labels': dietLabels,
+      'match_score': matchScore,
+      'matched_ingredients': matchedIngredients,
+      'missing_ingredients': missingIngredients,
     };
   }
 }

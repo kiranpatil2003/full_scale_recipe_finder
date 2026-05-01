@@ -18,6 +18,9 @@ class Recipe(BaseModel):
     external_id: str = ""
     allergens: list[str] = []
     diet_labels: list[str] = []
+    match_score: Optional[float] = None
+    matched_ingredients: Optional[list[str]] = None
+    missing_ingredients: Optional[list[str]] = None
 
 
 class RecipeCreate(BaseModel):

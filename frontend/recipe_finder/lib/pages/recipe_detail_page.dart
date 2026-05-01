@@ -170,6 +170,72 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
+
+                  // ─── Match score badge (only from ingredient search) ────
+                  if (recipe.matchScore != null) ...[
+                    Builder(builder: (_) {
+                      final score = recipe.matchScore!;
+                      String badgeLabel;
+                      Color badgeColor;
+                      IconData badgeIcon;
+                      if (score == 1.0) {
+                        badgeLabel = '🟢 Can make now';
+                        badgeColor = const Color(0xFF10B981);
+                        badgeIcon = Icons.check_circle;
+                      } else if (score >= 0.5) {
+                        badgeLabel = '🟡 Almost there';
+                        badgeColor = const Color(0xFFF59E0B);
+                        badgeIcon = Icons.timelapse;
+                      } else {
+                        badgeLabel = '🔵 Inspiration';
+                        badgeColor = const Color(0xFF3B82F6);
+                        badgeIcon = Icons.lightbulb_outline;
+                      }
+                      final matchedCount = recipe.matchedIngredients?.length ?? 0;
+                      final totalNonStaple = matchedCount + (recipe.missingIngredients?.length ?? 0);
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(badgeIcon, color: badgeColor, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    badgeLabel,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: badgeColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$matchedCount of $totalNonStaple ingredients matched  •  ${(score * 100).toInt()}%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: badgeColor.withValues(alpha: 0.8),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                  ],
+
                   Text(
                     recipe.description,
                     style: TextStyle(
@@ -279,46 +345,166 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Ingredients
-                  const Text(
-                    'Ingredients',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...recipe.ingredients.asMap().entries.map((entry) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  // ─── Ingredients section ─────────────────────────────────
+                  // If we have match data, show matched/missing breakdown
+                  if (recipe.matchedIngredients != null && recipe.missingIngredients != null) ...[
+                    // Available ingredients
+                    if (recipe.matchedIngredients!.isNotEmpty) ...[
+                      Row(
                         children: [
                           Container(
-                            margin: const EdgeInsets.only(top: 6),
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF6B35),
-                              shape: BoxShape.circle,
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
                             ),
+                            child: const Icon(Icons.check_circle, size: 16, color: Color(0xFF10B981)),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              entry.value,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                                height: 1.4,
-                              ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Available Ingredients (${recipe.matchedIngredients!.length})',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF10B981),
                             ),
                           ),
                         ],
                       ),
-                    );
-                  }),
+                      const SizedBox(height: 10),
+                      ...recipe.matchedIngredients!.map((ing) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 7),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 6),
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  ing,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 18),
+                    ],
+
+                    // Missing ingredients
+                    if (recipe.missingIngredients!.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.cancel, size: 16, color: Color(0xFFEF4444)),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Missing Ingredients (${recipe.missingIngredients!.length})',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ...recipe.missingIngredients!.map((ing) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 7),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 6),
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  ing,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                    height: 1.4,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 18),
+                    ],
+                  ] else ...[
+                    // Standard ingredients list (no match data)
+                    const Text(
+                      'Ingredients',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...recipe.ingredients.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 6),
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF6B35),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                entry.value,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
                   const SizedBox(height: 24),
 
                   // Instructions
