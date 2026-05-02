@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:recipe_finder/models/recipe.dart';
+import 'package:recipe_finder/models/user_profile.dart';
 import 'package:recipe_finder/services/favorites_service.dart';
+import 'package:recipe_finder/services/user_service.dart';
 
 class RecipeDetailPage extends StatefulWidget {
   final Recipe recipe;
@@ -15,11 +18,50 @@ class RecipeDetailPage extends StatefulWidget {
 class _RecipeDetailPageState extends State<RecipeDetailPage> {
   bool _isFavorite = false;
   bool _loadingFav = false;
+  UserProfile? _userProfile;
 
   @override
   void initState() {
     super.initState();
     _checkFavorite();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await UserService.getProfile();
+      if (mounted) setState(() => _userProfile = profile);
+    } catch (_) {
+      // If profile can't be loaded, warnings won't be shown
+    }
+  }
+
+  /// Returns only the recipe allergens that match the user's saved allergies.
+  List<String> _getRelevantAllergens() {
+    if (_userProfile == null) return [];
+    final userAllergies = _userProfile!.allergies
+        .map((a) => a.toLowerCase().trim())
+        .toSet();
+    final userDietPrefs = _userProfile!.dietaryPreferences
+        .map((p) => p.toLowerCase().trim())
+        .toSet();
+    // Combine allergies + dietary preferences for matching
+    // e.g. user has "gluten-free" preference → warn about "gluten" allergen
+    final sensitiveTerms = <String>{};
+    sensitiveTerms.addAll(userAllergies);
+    // Map dietary preferences to their related allergens
+    for (final pref in userDietPrefs) {
+      if (pref == 'gluten-free') sensitiveTerms.addAll(['gluten', 'wheat']);
+      if (pref == 'dairy-free') sensitiveTerms.addAll(['dairy', 'milk', 'lactose']);
+      if (pref == 'vegan') sensitiveTerms.addAll(['dairy', 'milk', 'eggs', 'egg', 'fish', 'shellfish', 'honey']);
+      if (pref == 'vegetarian') sensitiveTerms.addAll(['fish', 'shellfish']);
+    }
+
+    return widget.recipe.allergens.where((allergen) {
+      final lowerAllergen = allergen.toLowerCase().trim();
+      return sensitiveTerms.any((term) =>
+          lowerAllergen.contains(term) || term.contains(lowerAllergen));
+    }).toList();
   }
 
   Future<void> _checkFavorite() async {
@@ -49,6 +91,40 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
     } finally {
       if (mounted) setState(() => _loadingFav = false);
     }
+  }
+
+  /// Detects if [text] contains HTML tags.
+  static final _htmlTagRegex = RegExp(r'<[a-zA-Z][^>]*>');
+
+  /// Renders the description as rich HTML if tags are detected,
+  /// otherwise falls back to a plain Text widget.
+  Widget _buildDescription(String text) {
+    if (_htmlTagRegex.hasMatch(text)) {
+      return Html(
+        data: text,
+        style: {
+          'body': Style(
+            fontSize: FontSize(14),
+            color: Colors.grey.shade600,
+            lineHeight: LineHeight(1.5),
+            margin: Margins.zero,
+            padding: HtmlPaddings.zero,
+          ),
+          'a': Style(
+            color: const Color(0xFFFF6B35),
+            textDecoration: TextDecoration.none,
+          ),
+        },
+      );
+    }
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 14,
+        color: Colors.grey.shade600,
+        height: 1.5,
+      ),
+    );
   }
 
   @override
@@ -236,14 +312,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     const SizedBox(height: 8),
                   ],
 
-                  Text(
-                    recipe.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                      height: 1.5,
-                    ),
-                  ),
+                  _buildDescription(recipe.description),
                   const SizedBox(height: 20),
 
                   // Info chips
@@ -310,40 +379,44 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Allergens warning
-                  if (recipe.allergens.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.warning_amber,
-                            color: Color(0xFFF59E0B),
-                            size: 20,
+                  // Allergens warning — only shown if they match user's profile
+                  Builder(builder: (_) {
+                    final relevantAllergens = _getRelevantAllergens();
+                    if (relevantAllergens.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Contains: ${recipe.allergens.join(", ")}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF92400E),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.warning_amber,
+                              color: Color(0xFFF59E0B),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '⚠️ Warning: Contains ${relevantAllergens.join(", ")}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF92400E),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                    );
+                  }),
 
                   // ─── Ingredients section ─────────────────────────────────
                   // If we have match data, show matched/missing breakdown
