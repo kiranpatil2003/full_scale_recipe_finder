@@ -66,6 +66,7 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _selectedIngredients = [];
   bool _nutritionFiltersCollapsed = false;
   bool _ingredientFiltersCollapsed = false;
+  List<String> _activeNutritionKeys = [];
 
   // Nutrition filter controllers (min & max for each field)
   final Map<String, TextEditingController> _minControllers = {};
@@ -140,6 +141,15 @@ class _SearchPageState extends State<SearchPage> {
       if (minVal.isNotEmpty) filters['min_${f.key}'] = minVal;
       if (maxVal.isNotEmpty) filters['max_${f.key}'] = maxVal;
     }
+
+    final activeKeys = <String>[];
+    for (final f in _nutrientFields) {
+      if (_minControllers[f.key]!.text.trim().isNotEmpty ||
+          _maxControllers[f.key]!.text.trim().isNotEmpty) {
+        activeKeys.add(f.key);
+      }
+    }
+
     if (filters.isEmpty) {
       setState(() => _error = 'Please enter at least one nutrition filter.');
       return;
@@ -153,6 +163,7 @@ class _SearchPageState extends State<SearchPage> {
           _results = results;
           _isLoading = false;
           _nutritionFiltersCollapsed = true;
+          _activeNutritionKeys = activeKeys;
         });
       }
     } catch (e) {
@@ -167,7 +178,9 @@ class _SearchPageState extends State<SearchPage> {
     for (final c in _maxControllers.values) {
       c.clear();
     }
-    setState(() {});
+    setState(() {
+      _activeNutritionKeys = [];
+    });
   }
 
   void _addIngredient(String ingredient) {
@@ -743,7 +756,7 @@ class _SearchPageState extends State<SearchPage> {
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 14,
         crossAxisSpacing: 14,
@@ -751,13 +764,35 @@ class _SearchPageState extends State<SearchPage> {
       ),
       itemCount: _results.length,
       itemBuilder: (context, index) {
+        final recipe = _results[index];
+        Map<String, String>? highlighted;
+
+        if (_mode == _SearchMode.nutrition && _activeNutritionKeys.isNotEmpty) {
+          highlighted = {};
+          for (final key in _activeNutritionKeys) {
+            final field = _nutrientFields.firstWhere((f) => f.key == key);
+            final val = recipe.nutrition?[key];
+            if (val != null) {
+              // Format value: if it's a double, remove .0 if it's whole
+              String valStr = val.toString();
+              if (val is double && val == val.toInt().toDouble()) {
+                valStr = val.toInt().toString();
+              }
+              highlighted[field.label] = '$valStr ${field.unit}';
+            }
+          }
+        }
+
         return RecipeCard(
-          recipe: _results[index],
+          recipe: recipe,
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => RecipeDetailPage(recipe: _results[index]),
+                builder: (_) => RecipeDetailPage(
+                  recipe: recipe,
+                  highlightedNutrition: highlighted,
+                ),
               ),
             );
           },

@@ -2,6 +2,33 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class NutritionData(BaseModel):
+    """Schema for nutrition info from the nutritions table."""
+    recipe_id: int
+    calories_kcal: Optional[float] = 0
+    protein_g: Optional[float] = 0
+    fat_total_g: Optional[float] = 0
+    carbohydrates_g: Optional[float] = 0
+    fiber_g: Optional[float] = 0
+    sugar_g: Optional[float] = 0
+    sodium_mg: Optional[float] = 0
+    cholesterol_mg: Optional[float] = 0
+    saturated_fat_g: Optional[float] = 0
+    potassium_mg: Optional[float] = 0
+    calcium_mg: Optional[float] = 0
+    iron_mg: Optional[float] = 0
+    vitamin_c_mg: Optional[float] = 0
+    vitamin_a_iu: Optional[float] = 0
+    vitamin_d_iu: Optional[float] = 0
+    vitamin_b12_mcg: Optional[float] = 0
+    folate_mcg: Optional[float] = 0
+    zinc_mg: Optional[float] = 0
+    magnesium_mg: Optional[float] = 0
+    phosphorus_mg: Optional[float] = 0
+    ingredients_count: Optional[int] = 0
+    matched_count: Optional[int] = 0
+
+
 class Recipe(BaseModel):
     """Schema for a recipe stored in Supabase."""
     id: Optional[int] = None
@@ -21,6 +48,7 @@ class Recipe(BaseModel):
     match_score: Optional[float] = None
     matched_ingredients: Optional[list[str]] = None
     missing_ingredients: Optional[list[str]] = None
+    nutrition: Optional[NutritionData] = None
 
 
 class RecipeCreate(BaseModel):
@@ -91,33 +119,6 @@ class SearchRequest(BaseModel):
 class FCMTokenUpdate(BaseModel):
     """Schema for updating FCM token."""
     token: str
-
-
-class NutritionData(BaseModel):
-    """Schema for nutrition info from the nutritions table."""
-    recipe_id: int
-    calories_kcal: Optional[float] = 0
-    protein_g: Optional[float] = 0
-    fat_total_g: Optional[float] = 0
-    carbohydrates_g: Optional[float] = 0
-    fiber_g: Optional[float] = 0
-    sugar_g: Optional[float] = 0
-    sodium_mg: Optional[float] = 0
-    cholesterol_mg: Optional[float] = 0
-    saturated_fat_g: Optional[float] = 0
-    potassium_mg: Optional[float] = 0
-    calcium_mg: Optional[float] = 0
-    iron_mg: Optional[float] = 0
-    vitamin_c_mg: Optional[float] = 0
-    vitamin_a_iu: Optional[float] = 0
-    vitamin_d_iu: Optional[float] = 0
-    vitamin_b12_mcg: Optional[float] = 0
-    folate_mcg: Optional[float] = 0
-    zinc_mg: Optional[float] = 0
-    magnesium_mg: Optional[float] = 0
-    phosphorus_mg: Optional[float] = 0
-    ingredients_count: Optional[int] = 0
-    matched_count: Optional[int] = 0
 
 
 class MessageResponse(BaseModel):

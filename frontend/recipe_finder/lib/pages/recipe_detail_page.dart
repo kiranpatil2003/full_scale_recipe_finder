@@ -8,8 +8,13 @@ import 'package:recipe_finder/services/user_service.dart';
 
 class RecipeDetailPage extends StatefulWidget {
   final Recipe recipe;
+  final Map<String, String>? highlightedNutrition;
 
-  const RecipeDetailPage({super.key, required this.recipe});
+  const RecipeDetailPage({
+    super.key,
+    required this.recipe,
+    this.highlightedNutrition,
+  });
 
   @override
   State<RecipeDetailPage> createState() => _RecipeDetailPageState();
@@ -417,6 +422,71 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                       ),
                     );
                   }),
+
+                  // ─── Nutrition section (if highlighted) ─────────────────
+                  if (widget.highlightedNutrition != null &&
+                      widget.highlightedNutrition!.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.analytics_outlined,
+                              size: 16, color: Color(0xFF8B5CF6)),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Targeted Nutrition',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFF3F4F6)),
+                      ),
+                      child: Wrap(
+                        spacing: 20,
+                        runSpacing: 16,
+                        children: widget.highlightedNutrition!.entries.map((e) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                e.key,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                e.value,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1F2937),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // ─── Ingredients section ─────────────────────────────────
                   // If we have match data, show matched/missing breakdown

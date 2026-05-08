@@ -13,6 +13,7 @@ class Recipe {
   final String externalId;
   final List<String> allergens;
   final List<String> dietLabels;
+  final Map<String, dynamic>? nutrition;
   final double? matchScore;
   final List<String>? matchedIngredients;
   final List<String>? missingIngredients;
@@ -32,6 +33,7 @@ class Recipe {
     this.externalId = '',
     this.allergens = const [],
     this.dietLabels = const [],
+    this.nutrition,
     this.matchScore,
     this.matchedIngredients,
     this.missingIngredients,
@@ -65,6 +67,7 @@ class Recipe {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      nutrition: json['nutrition'] as Map<String, dynamic>?,
       matchScore: (json['match_score'] as num?)?.toDouble(),
       matchedIngredients: (json['matched_ingredients'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -91,6 +94,7 @@ class Recipe {
       'external_id': externalId,
       'allergens': allergens,
       'diet_labels': dietLabels,
+      'nutrition': nutrition,
       'match_score': matchScore,
       'matched_ingredients': matchedIngredients,
       'missing_ingredients': missingIngredients,

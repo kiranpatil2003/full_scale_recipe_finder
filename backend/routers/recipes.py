@@ -374,7 +374,7 @@ async def search_by_nutrition(
         )
 
     # Query the nutritions table
-    query = sb.table("nutritions").select("recipe_id")
+    query = sb.table("nutritions").select("*")
     for field, (mn, mx) in filters.items():
         if mn is not None:
             query = query.gte(field, mn)
@@ -383,7 +383,8 @@ async def search_by_nutrition(
 
     query = query.range(offset, offset + limit - 1)
     nut_result = query.execute()
-    matched_ids = [row["recipe_id"] for row in (nut_result.data or [])]
+    nut_data_map = {row["recipe_id"]: row for row in (nut_result.data or [])}
+    matched_ids = list(nut_data_map.keys())
 
     if not matched_ids:
         return []
@@ -394,6 +395,11 @@ async def search_by_nutrition(
 
     # Apply allergy / dietary restrictions
     filtered = _filter_by_restrictions(recipes, allergies, preferences)
+
+    # Attach nutrition data to recipes
+    for recipe in filtered:
+        recipe["nutrition"] = nut_data_map.get(recipe["id"])
+
     return filtered
 
 

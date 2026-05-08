@@ -166,13 +166,17 @@ class RecipeCard extends StatelessWidget {
                         Icon(Icons.timer_outlined,
                             size: 13, color: Colors.grey.shade500),
                         const SizedBox(width: 3),
-                        Text(
-                          recipe.cookTime.isNotEmpty
-                              ? recipe.cookTime
-                              : 'N/A',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
+                        Flexible(
+                          child: Text(
+                            recipe.cookTime.isNotEmpty
+                                ? recipe.cookTime
+                                : 'N/A',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         const Spacer(),
